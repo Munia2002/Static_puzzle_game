@@ -1,0 +1,552 @@
+from OpenGL.GL import *
+from OpenGL.GLUT import *
+from OpenGL.GLU import *
+import math
+import numpy as np
+import time
+
+# globals
+start_time = None
+end_time = None
+move_count = 0
+reached_end = False
+
+
+# Timer
+def update_timer():
+    global start_time, end_time
+    if not start_time and (ball_x != 830 or ball_y != 60):
+        start_time = time.time()  # Start the timer
+
+    if reached_end and end_time is None:
+        end_time = time.time()
+
+
+# Maze
+maze_walls = [
+    (70, 70, 820, 70),  # outlines
+    (840, 70, 850, 70),
+    (70, 70, 70, 850),
+    (70, 850, 80, 850),
+    (100, 850, 850, 850),
+    (850, 70, 850, 850),
+    (100, 850, 100, 870),
+    (80, 850, 80, 870),
+    (80, 870, 100, 870),
+
+    # inside
+    (70, 138, 122, 138),
+    (162, 70, 162, 138),
+    (162, 178, 210, 178),
+    (210, 70, 210, 178),
+    (114, 178, 114, 338),
+    (162, 338, 114, 338),
+    (70, 370, 114, 370),
+    (242, 70, 242, 210),
+    (242, 210, 162, 210),
+    (162, 210, 162, 290),
+    (70, 402, 274, 402),
+    (274, 402, 274, 434),
+    (210, 274, 210, 370),
+    (210, 370, 370, 370),
+    (274, 370, 274, 338),
+    (242, 274, 242, 338),
+    (242, 338, 306, 338),
+    (210, 242, 370, 242),
+    (274, 242, 274, 114),
+    (322, 242, 322, 114),
+    (322, 114, 402, 114),
+    (402, 146, 402, 70),
+    (370, 210, 370, 178),
+    (370, 178, 530, 178),
+    (530, 178, 530, 70),
+    (530, 130, 434, 130),
+    (562, 114, 802, 114),
+    (594, 114, 594, 146),
+    (562, 146, 594, 146),
+    (626, 146, 626, 210),
+    (770, 146, 626, 146),
+    (626, 210, 802, 210),
+    (802, 210, 802, 146),
+    (802, 146, 850, 146),
+    (274, 274, 530, 274),
+    (306, 338, 306, 274),
+    (482, 242, 482, 274),
+    (482, 242, 434, 242),
+    (402, 242, 402, 210),
+    (402, 210, 594, 210),
+    (594, 210, 594, 338),
+    (370, 338, 562, 338),
+    (594, 338, 690, 338),
+    (562, 242, 562, 338),
+    (626, 242, 626, 338),
+    (722, 178, 722, 210),
+    (626, 242, 754, 242),
+    (690, 274, 690, 370),
+    (722, 322, 818, 322),
+    (754, 322, 754, 274),
+    (690, 274, 850, 274),
+    (370, 338, 370, 306),
+    (690, 370, 786, 370),
+    (818, 370, 850, 370),
+    (114, 850, 114, 818),
+    (70, 770, 114, 770),
+    (146, 818, 146, 610),
+    (114, 722, 146, 722),
+    (146, 402, 146, 370),
+    (114, 450, 114, 690),
+    (70, 450, 114, 450),
+    (114, 562, 178, 562),
+    (146, 450, 146, 530),
+    (146, 530, 370, 530),
+    (434, 530, 530, 530),
+    (562, 530, 562, 562),
+    (562, 562, 402, 562),
+    (370, 562, 370, 626),
+    (178, 402, 178, 530),
+    (754, 402, 850, 402),
+    (178, 562, 178, 658),
+    (178, 482, 306, 482),
+    (210, 434, 210, 482),
+    (850, 114, 834, 114),
+    (690, 70, 690, 114),
+    (242, 850, 242, 818),
+    (178, 818, 274, 818),
+    (146, 690, 178, 690),
+    (210, 690, 338, 690),
+    (178, 770, 242, 770),
+    (178, 770, 178, 722),
+    (210, 722, 370, 722),
+    (210, 690, 210, 530),
+    (242, 658, 242, 562),
+    (274, 690, 274, 562),
+    (274, 658, 498, 658),
+    (338, 530, 338, 626),
+    (370, 626, 530, 626),
+    (450, 626, 450, 594),
+    (338, 594, 306, 594),
+    (306, 818, 562, 818),
+    (242, 690, 242, 722),
+    (274, 770, 370, 770),
+    (370, 770, 370, 722),
+    (450, 818, 450, 786),
+    (450, 786, 530, 786),
+    (610, 850, 610, 722),
+    (610, 722, 450, 722),
+    (562, 722, 562, 754),
+    (402, 722, 402, 658),
+    (450, 722, 450, 754),
+    (370, 402, 370, 466),
+    (370, 434, 306, 434),
+    (402, 818, 402, 754),
+    (722, 850, 722, 818),
+    (658, 818, 818, 818),
+    (802, 770, 850, 770),
+    (770, 818, 770, 786),
+    (770, 786, 658, 786),
+    (642, 722, 850, 722),
+    (642, 722, 642, 754),
+    (754, 722, 754, 754),
+    (690, 690, 722, 690),
+    (722, 690, 722, 626),
+    (754, 690, 850, 690),
+    (498, 690, 498, 626),
+    (530, 690, 658, 690),
+    (594, 690, 594, 626),
+    (594, 626, 658, 626),
+    (658, 626, 658, 594),
+    (658, 594, 498, 594),
+    (626, 594, 626, 530),
+    (626, 530, 594, 530),
+    (402, 498, 402, 434),
+    (402, 498, 530, 498),
+    (530, 498, 530, 370),
+    (434, 466, 498, 466),
+    (434, 466, 434, 434),
+    (498, 466, 498, 370),
+    (466, 434, 466, 338),
+    (402, 370, 466, 370),
+    (402, 370, 402, 402),
+    (690, 530, 850, 530),
+    (770, 530, 770, 658),
+    (770, 658, 818, 658),
+    (818, 658, 818, 594),
+    (770, 594, 690, 594),
+    (562, 498, 850, 498),
+    (690, 498, 690, 434),
+    (690, 466, 786, 466),
+    (786, 466, 786, 434),
+    (562, 466, 658, 466),
+    (658, 466, 658, 402),
+    (658, 402, 658, 370),
+    (658, 370, 594, 370),
+    (594, 370, 594, 434),
+    (594, 402, 562, 402),
+    (722, 370, 722, 402),
+]
+
+# Ball position variables
+
+#use the commented cordinates to move the ball to near end
+ball_x = 830 #90 #
+ball_y = 90  #860 #
+ball_radius = 6
+
+# Ball reset after collision check
+previous_ball_x = ball_x
+previous_ball_y = ball_y
+
+
+# Ball generation using midpoint_circle
+def store(x_centre, y_centre, x, y):
+    pixels = []
+    pixels.append([x_centre + x, y_centre + y])
+    pixels.append([x_centre - x, y_centre + y])
+    pixels.append([x_centre + x, y_centre - y])
+    pixels.append([x_centre - x, y_centre - y])
+    pixels.append([x_centre + y, y_centre + x])
+    pixels.append([x_centre - y, y_centre + x])
+    pixels.append([x_centre + y, y_centre - x])
+    pixels.append([x_centre - y, y_centre - x])
+    return pixels
+
+
+def MidpointCircle(x_centre, y_centre, r):
+    pixels = []
+    x = 0
+    y = r
+    pixels = store(x_centre, y_centre, x, y)
+    D = 1 - r
+
+    while x <= y:
+        # used for filling up the ball with color pixels
+        for y_pixel in range(y_centre - ball_radius, y_centre + ball_radius + 1):
+            y_distance = abs(y_pixel - y_centre)
+            x_range = int(math.sqrt(ball_radius ** 2 - y_distance ** 2))
+
+            for x_pixel in range(x_centre - x_range, x_centre + x_range + 1):
+                pixels.append([x_pixel, y_pixel])
+
+        if D < 0:
+            x += 1
+            D = D + 2 * x + 3
+        else:
+            x += 1
+            y -= 1
+            D = D + 2 * (x - y) + 3
+        pixels += store(x_centre, y_centre, x, y)
+    return pixels
+
+
+# pixel size of everything
+def draw_points(x, y):
+    glPointSize(2)
+    glBegin(GL_POINTS)
+    glVertex2f(x, y)
+    glEnd()
+
+
+# line drawing algo
+def find_zone(dx, dy):
+    if (dx > -1 and dy > -1):
+        if (abs(dx) >= abs(dy)):
+            return 0
+        else:
+            return 1
+    elif (dx < 0 and dy > -1):
+        if (abs(dx) < abs(dy)):
+            return 2
+        else:
+            return 3
+    elif (dx < 0 and dy < 0):
+        if (abs(dx) >= abs(dy)):
+            return 4
+        else:
+            return 5
+    else:
+        if abs(dx) < abs(dy):
+            return 6
+        else:
+            return 7
+
+
+def convert_to_zone0(x1, y1, x2, y2, zone):
+    a = 0
+    b = 0
+    c = 0
+    d = 0
+
+    if zone == 0:
+        a = x1
+        b = y1
+        c = x2
+        d = y2
+
+    elif zone == 1:
+        a = y1
+        b = x1
+        c = y2
+        d = x2
+
+    elif zone == 2:
+        a = y1
+        b = -x1
+        c = y2
+        d = -x2
+
+    elif zone == 3:
+        a = -x1
+        b = y1
+        c = -x2
+        d = y2
+
+    elif zone == 4:
+        a = -x1
+        b = -y1
+        c = -x2
+        d = -y2
+
+    elif zone == 5:
+        a = -y1
+        b = -x1
+        c = -y2
+        d = -x2
+
+    elif zone == 6:
+        a = -y1
+        b = x1
+        c = -y2
+        d = x2
+
+    elif zone == 7:
+        a = x1
+        b = -y1
+        c = x2
+        d = -y2
+
+    return a, b, c, d
+
+
+def midpoint_line(x1, y1, x2, y2):
+    dx = x2 - x1
+    dy = y2 - y1
+    zone = find_zone(dx, dy)
+
+    x1, y1, x2, y2 = convert_to_zone0(x1, y1, x2, y2, zone)
+    X0 = []
+    Y0 = []
+    d = []
+
+    dx = x2 - x1
+    dy = y2 - y1
+    D = 2 * dy - dx
+
+    d = d + [D]
+    dNE = 2 * (dy - dx)
+    dE = 2 * dy
+
+    x = x1
+    y = y1
+    while x <= x2:
+        a = x
+        b = y
+        X0 += [x]
+        Y0 += [y]
+
+        a, b = convert_back_to_prev_zone(a, b, zone)
+        draw_points(a, b)
+        x = x + 1
+        if D > 0:
+            y = y + 1
+            D = D + dNE
+        else:
+            D = D + dE
+            d += [D]
+
+
+def convert_back_to_prev_zone(x, y, zone):
+    if zone == 0:
+        return x, y
+
+    if zone == 1:
+        return y, x
+
+    if zone == 2:
+        return -y, x
+
+    if zone == 3:
+        return -x, y
+
+    if zone == 4:
+        return -x, -y
+
+    if zone == 5:
+        return -y, -x
+
+    if zone == 6:
+        return y, -x
+
+    if zone == 7:
+        return x, -y
+
+
+# ball colliding with walls/boundary
+def check_collision(ball_x, ball_y, ball_radius, wall):
+    wall_x1, wall_y1, wall_x2, wall_y2 = wall
+    distance = point_line_distance(ball_x, ball_y, wall_x1, wall_y1, wall_x2, wall_y2)
+    return distance < ball_radius
+
+
+# distance between ball and walls
+def point_line_distance(px, py, x1, y1, x2, y2):
+    dx = x2 - x1
+    dy = y2 - y1
+    length_squared = dx * dx + dy * dy
+    if length_squared == 0:
+        return math.sqrt((px - x1) ** 2 + (py - y1) ** 2)
+    t = max(0, min(1, ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / length_squared))
+    closest_x = x1 + t * dx
+    closest_y = y1 + t * dy
+    distance = math.sqrt((px - closest_x) ** 2 + (py - closest_y) ** 2)
+    return distance
+
+
+def iterate():
+    glViewport(0, 0, 950, 950)
+    glMatrixMode(GL_PROJECTION)
+    glLoadIdentity()
+    glOrtho(0.0, 950, 0.0, 950, 0.0, 1.0)
+    glMatrixMode(GL_MODELVIEW)
+    glLoadIdentity()
+
+
+# ball movement using transformation matrix(translation)
+def translate(s, a, b, c, d, e, f):
+    s_translated = []
+    t = np.array([[a, b, c],
+                  [d, e, f],
+                  [0, 0, 1]])
+
+    for point in s:
+        p = np.array([[point[0]],
+                      [point[1]],
+                      [1]])
+
+        p_prime = np.matmul(t, p)
+        s_translated.append([p_prime[0][0], p_prime[1][0]])
+
+    return s_translated
+
+
+# using directional movement keys to translate generated ball pixels
+def directional_keys(key, x, y):
+    global ball_x, ball_y, previous_ball_x, previous_ball_y, move_count
+    if key == GLUT_KEY_UP:
+        translated_points = translate([[ball_x, ball_y, 1]], 1, 0, 0, 0, 1, 10)
+        ball_x, ball_y = translated_points[0][:2]
+        move_count += 1
+    elif key == GLUT_KEY_DOWN:
+        translated_points = translate([[ball_x, ball_y, 1]], 1, 0, 0, 0, 1, -10)
+        ball_x, ball_y = translated_points[0][:2]
+        move_count += 1
+    elif key == GLUT_KEY_LEFT:
+        translated_points = translate([[ball_x, ball_y, 1]], 1, 0, -10, 0, 1, 0)
+        ball_x, ball_y = translated_points[0][:2]
+        move_count += 1
+    elif key == GLUT_KEY_RIGHT:
+        translated_points = translate([[ball_x, ball_y, 1]], 1, 0, 10, 0, 1, 0)
+        ball_x, ball_y = translated_points[0][:2]
+        move_count += 1
+    glutPostRedisplay()
+
+
+# used for writing "congratulations" & "maze puzzle game"
+def draw_text_header(x, y, text_header):
+    glRasterPos2f(x, y)
+    for character in text_header:
+        glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, ord(character))
+
+
+# used for writing "start, finish and rest of the words"
+def draw_text_others(x, y, text_others):
+    glRasterPos2f(x, y)
+    for character in text_others:
+        glutBitmapCharacter(GLUT_BITMAP_9_BY_15, ord(character))
+
+
+def showScreen():
+    global ball_x, ball_y, previous_ball_x, previous_ball_y, reached_end
+    glClearColor(0.3, 0.3, 1.0, 1.0)
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    glLoadIdentity()
+    iterate()
+
+    # used for generating timer on first screen(live timer)
+    if start_time:
+        current_time = time.time()
+        elapsed_time = current_time - start_time
+        draw_text_others(680, 860, f"Elapsed Time: {elapsed_time:.2f}")
+
+    # used for stopping the timer when the game ends
+    if not reached_end:
+        if ball_x == 830 and ball_y == 60:
+            reached_end = True
+            glutPostRedisplay()
+
+    # 2nd screen stuffs
+    if reached_end:
+        glClearColor(1.0, 0.8431, 0.0, 1.0)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glColor3f(0.0, 0.0, 0.50196)
+        draw_text_header(400, 600, "Congratulations!")
+        draw_text_others(220, 570, "You've successfully conquered the maze and reached the end!")
+        draw_text_others(390, 550, f"Total Moves Made: {move_count}")
+        draw_text_others(330, 530, f"Total Elapsed Time: {elapsed_time:.2f} seconds")
+        glutSwapBuffers()
+        return
+
+    # collision call
+    for wall in maze_walls:
+        if check_collision(ball_x, ball_y, ball_radius, wall):
+            ball_x = previous_ball_x
+            ball_y = previous_ball_y
+            break
+
+    # wall color
+    glColor3f(1.0, 0.84314, 0.0)
+    for wall in maze_walls:
+        midpoint_line(wall[0], wall[1], wall[2], wall[3])
+
+    # ball call + color pixels
+    ball_pixels = MidpointCircle(ball_x, ball_y, ball_radius)
+    glColor3f(1.0, 0.0, 0.0)
+    glBegin(GL_POINTS)
+    for pixel in ball_pixels:
+        glVertex2f(pixel[0], pixel[1])
+    glEnd()
+
+    # Text generation on main screen(1st screen)
+    glColor3f(1.0, 1.0, 1.0)
+    draw_text_others(70, 880, "Start")
+    draw_text_others(810, 40, "Finish")
+    draw_text_header(400, 900, "Maze Puzzle Game")
+    draw_text_others(680, 880, f"Move: {move_count}")
+
+    glutSwapBuffers()
+    glutPostRedisplay()
+
+
+def main():
+    glutInit()
+    glutInitDisplayMode(GLUT_RGBA)
+    glutInitWindowSize(950, 950)
+    glutInitWindowPosition(0, 0)
+    glutCreateWindow(b"Maze Game")
+    glutDisplayFunc(showScreen)
+    glutSpecialFunc(directional_keys)
+    glutTimerFunc(1000, lambda _: update_timer(), 0)  # Update timer every 1 second
+    glutMainLoop()
+
+
+if __name__ == "__main__":
+    main()
